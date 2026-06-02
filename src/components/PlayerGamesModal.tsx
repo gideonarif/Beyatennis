@@ -2,6 +2,7 @@ import { usePlayerProfiles } from '../context/PlayerProfilesContext'
 import type { Player } from '../types'
 import type { PlayerMatchRow } from '../utils/playerMatches'
 import { Avatar } from './Avatar'
+import { MatchPlayersFaceoff } from './MatchPlayersFaceoff'
 import { ProfilePhotoUpload } from './ProfilePhotoUpload'
 
 interface PlayerGamesModalProps {
@@ -124,9 +125,16 @@ export function PlayerGamesModal({
                           Upcoming
                         </span>
                       </div>
-                      <p className="mt-1 font-semibold text-gray-900">
-                        vs {row.opponentName}
-                      </p>
+                      <div className="mt-2">
+                        <MatchPlayersFaceoff
+                          player1={{ id: player.id, name: player.name }}
+                          player2={{
+                            id: row.opponentId,
+                            name: row.opponentName,
+                          }}
+                          size="md"
+                        />
+                      </div>
                     </li>
                   )
                 })}

@@ -7,6 +7,7 @@ import {
   emptyGame,
   isGame3Unlocked,
 } from '../utils/scoring'
+import { MatchPlayersFaceoff } from './MatchPlayersFaceoff'
 import { MatchResultBoard } from './MatchResultBoard'
 
 interface MatchCardProps {
@@ -96,6 +97,15 @@ export function MatchCard({
 
   const isUpcoming = readOnly && !result && !locked
 
+  const stageLabel =
+    match.stage === 'semifinal'
+      ? 'Semi Final'
+      : match.stage === 'third_place'
+        ? '3rd Place'
+        : match.stage === 'final'
+          ? 'Final'
+          : null
+
   return (
     <article
       className={`rounded-2xl bg-white p-4 shadow-sm ${
@@ -114,26 +124,27 @@ export function MatchCard({
         </p>
       )}
 
+      {stageLabel && !showResultBoard && (
+        <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-amber-700">
+          {stageLabel}
+        </p>
+      )}
+
       {showResultBoard ? (
         <MatchResultBoard match={match} result={result} />
       ) : (
         <>
-          <div className="mb-4 text-center">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              {isKnockout
-                ? match.stage === 'semifinal'
-                  ? 'Semi Final'
-                  : match.stage === 'third_place'
-                    ? '3rd Place'
-                    : match.stage === 'final'
-                      ? 'Final'
-                      : 'Knockout'
-                : `Group ${match.group}`}
-            </p>
-            <p className="mt-0.5 text-sm font-bold text-gray-900">
-              {p1Name}{' '}
-              <span className="font-normal text-gray-400">vs</span> {p2Name}
-            </p>
+          <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-gray-500">
+            {isKnockout ? stageLabel ?? 'Knockout' : `Group ${match.group}`}
+          </p>
+
+          <div className="mb-4">
+            <MatchPlayersFaceoff
+              player1={{ id: match.player1Id, name: p1Name }}
+              player2={{ id: match.player2Id, name: p2Name }}
+              size="xl"
+              highlightWinnerId={result?.winnerId}
+            />
           </div>
 
           {!readOnly && (

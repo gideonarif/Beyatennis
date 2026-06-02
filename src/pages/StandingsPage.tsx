@@ -1,4 +1,5 @@
 import { computeGroupStandings } from '../utils/standings'
+import { Avatar } from '../components/Avatar'
 import type { Result } from '../types'
 
 interface StandingsPageProps {
@@ -38,7 +39,12 @@ function StandingsTable({
             {rows.map((row, i) => (
               <tr key={row.playerId} className="border-b border-gray-50">
                 <td className="px-3 py-2.5 font-medium text-gray-400">{i + 1}</td>
-                <td className="px-3 py-2.5 font-semibold">{row.name}</td>
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <Avatar name={row.name} playerId={row.playerId} size="sm" />
+                    <span className="font-semibold">{row.name}</span>
+                  </div>
+                </td>
                 <td className="px-2 py-2.5 text-center">{row.played}</td>
                 <td className="px-2 py-2.5 text-center text-green-700">{row.wins}</td>
                 <td className="px-2 py-2.5 text-center text-red-600">{row.losses}</td>

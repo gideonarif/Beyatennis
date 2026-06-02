@@ -3,13 +3,15 @@ import { usePlayerProfiles } from '../context/PlayerProfilesContext'
 interface AvatarProps {
   name: string
   playerId?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl'
 }
 
 const sizeClasses = {
   sm: 'h-8 w-8 text-xs',
   md: 'h-10 w-10 text-sm',
   lg: 'h-12 w-12 text-base',
+  xl: 'h-16 w-16 text-lg',
+  xxl: 'h-40 w-40 text-4xl',
 }
 
 export function Avatar({ name, playerId, size = 'md' }: AvatarProps) {

@@ -137,7 +137,7 @@ export function MatchCard({
 
       <div className="mb-4 flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
-          <Avatar name={p1Name} playerId={match.player1Id} size="lg" />
+          <Avatar name={p1Name} playerId={match.player1Id} size="xl" />
           <span
             className={`truncate text-center text-sm font-bold ${
               result?.winnerId === match.player1Id ? 'text-green-700' : ''
@@ -148,7 +148,7 @@ export function MatchCard({
         </div>
         <span className="shrink-0 text-lg font-bold text-gray-400">vs</span>
         <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
-          <Avatar name={p2Name} playerId={match.player2Id} size="lg" />
+          <Avatar name={p2Name} playerId={match.player2Id} size="xl" />
           <span
             className={`truncate text-center text-sm font-bold ${
               result?.winnerId === match.player2Id ? 'text-green-700' : ''

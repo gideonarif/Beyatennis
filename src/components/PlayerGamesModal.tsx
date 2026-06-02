@@ -42,20 +42,18 @@ export function PlayerGamesModal({
         aria-modal="true"
         aria-labelledby="player-modal-title"
       >
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Avatar name={player.name} playerId={player.id} size="lg" />
-            <div>
-              <h2 id="player-modal-title" className="text-lg font-bold text-gray-900">
-                {player.name}
-              </h2>
-              <p className="text-xs text-gray-500">Group {player.group}</p>
-            </div>
+        <div className="relative border-b border-gray-100 px-4 py-4">
+          <div className="flex flex-col items-center text-center">
+            <Avatar name={player.name} playerId={player.id} size="xxl" />
+            <h2 id="player-modal-title" className="mt-3 text-lg font-bold text-gray-900">
+              {player.name}
+            </h2>
+            <p className="text-xs text-gray-500">Group {player.group}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-gray-500 hover:bg-gray-100"
+            className="absolute right-3 top-3 rounded-full p-2 text-gray-500 hover:bg-gray-100"
             aria-label="Close"
           >
             ✕

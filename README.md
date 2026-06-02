@@ -1,0 +1,47 @@
+# Table Tennis Tournament Tracker
+
+Responsive web app for managing a table tennis tournament with live scoring, standings, knockout bracket, and player profile photos.
+
+## Run locally
+
+```bash
+npm install
+cp .env.example .env
+# Add your Supabase URL and anon key to .env
+npm run dev
+```
+
+## Supabase setup (scores + profile photos)
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Open **SQL Editor** and run the full script in [`supabase/schema.sql`](supabase/schema.sql).
+3. In **Project Settings → API**, copy:
+   - Project URL → `VITE_SUPABASE_URL`
+   - `anon` `public` key → `VITE_SUPABASE_ANON_KEY`
+4. Paste both into a `.env` file in the project root (see `.env.example`).
+5. Restart `npm run dev`.
+
+### What Supabase stores
+
+| Data | Table / Storage |
+|------|-----------------|
+| Match scores | `match_results` (synced live across devices) |
+| Profile photo URLs | `players.avatar_url` |
+| Image files | Storage bucket `player-avatars` |
+
+Without `.env`, the app falls back to **browser localStorage** for scores only (no photo uploads).
+
+## Features
+
+- **Schedule** — Day selector, group matches, Sunday knockout
+- **Standings** — Fixed player order per group, live points
+- **Bracket** — Auto-generated from group results
+- **Players** — Tap for match history; **Admin** can upload profile photos
+- **Admin** — Password `Faith1234` to enter scores (client-side gate)
+- **Viewer** — Read-only schedule and standings
+
+## Scoring rules
+
+- Best of 3 games
+- **2–0** → winner 3 pts, loser 0 pts
+- **1–1** → Game 3; winner 2 pts, loser 1 pt

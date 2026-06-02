@@ -1,0 +1,49 @@
+export type Day = 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun'
+export type Group = 'A' | 'B' | 'Knockout'
+export type Stage = 'group' | 'semifinal' | 'third_place' | 'final'
+export type Tab = 'schedule' | 'standings' | 'bracket' | 'players'
+
+export interface Player {
+  id: string
+  name: string
+  group: 'A' | 'B'
+}
+
+export interface Match {
+  id: string
+  day: Day
+  group: Group
+  player1Id: string
+  player2Id: string
+  stage: Stage
+}
+
+export interface GameScore {
+  p1: number | null
+  p2: number | null
+}
+
+export interface Result {
+  game1: GameScore
+  game2: GameScore
+  game3: GameScore | null
+  winnerId: string
+  loserId: string
+  pointsP1: number
+  pointsP2: number
+  wentToDecider: boolean
+}
+
+export interface StandingRow {
+  playerId: string
+  name: string
+  played: number
+  wins: number
+  losses: number
+  points: number
+}
+
+export interface TournamentState {
+  results: Record<string, Result>
+  knockoutMatchIds: string[]
+}

@@ -1,4 +1,3 @@
-import { playerName } from '../data/players'
 import { usePlayerProfiles } from '../context/PlayerProfilesContext'
 import type { Player } from '../types'
 import type { PlayerMatchRow } from '../utils/playerMatches'
@@ -19,6 +18,13 @@ function stageLabel(stage: PlayerMatchRow['match']['stage']): string | null {
   return null
 }
 
+function totalRankingPoints(matches: PlayerMatchRow[]): number {
+  return matches.reduce((sum, row) => {
+    if (row.isUpcoming || row.match.group === 'Knockout') return sum
+    return sum + (row.matchPoints ?? 0)
+  }, 0)
+}
+
 export function PlayerGamesModal({
   player,
   matches,
@@ -26,23 +32,23 @@ export function PlayerGamesModal({
   onClose,
 }: PlayerGamesModalProps) {
   const { uploadAvatar, removeAvatar, isCloudEnabled } = usePlayerProfiles()
-  const played = matches.filter((m) => !m.isUpcoming)
   const upcoming = matches.filter((m) => m.isUpcoming)
+  const points = totalRankingPoints(matches)
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4 pb-24 sm:items-center sm:pb-4"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="max-h-[85dvh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl"
+        className="flex max-h-[min(85dvh,calc(100dvh-6rem))] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:max-h-[min(85dvh,calc(100dvh-2rem))]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="player-modal-title"
       >
-        <div className="relative border-b border-gray-100 px-4 py-4">
+        <header className="relative shrink-0 border-b border-gray-100 px-4 py-4">
           <div className="flex flex-col items-center text-center">
             <Avatar name={player.name} playerId={player.id} size="xxl" />
             <h2 id="player-modal-title" className="mt-3 text-lg font-bold text-gray-900">
@@ -58,9 +64,9 @@ export function PlayerGamesModal({
           >
             ✕
           </button>
-        </div>
+        </header>
 
-        <div className="overflow-y-auto px-4 py-3" style={{ maxHeight: 'calc(85dvh - 4rem)' }}>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
           {isCloudEnabled ? (
             <ProfilePhotoUpload
               playerId={player.id}
@@ -77,11 +83,30 @@ export function PlayerGamesModal({
             )
           )}
 
-          {upcoming.length > 0 && (
-            <section className="mb-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
-                Upcoming
-              </h3>
+          <section className="mb-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Ranking points
+            </h3>
+            <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-center">
+              <p className="text-3xl font-bold tabular-nums text-sky-600">{points}</p>
+              <p className="mt-1 text-xs text-gray-500">Earned in group stage so far</p>
+            </div>
+          </section>
+
+          <section className="pb-2">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
+              Upcoming games
+              {upcoming.length > 0 && (
+                <span className="ml-1.5 font-normal text-gray-400">
+                  ({upcoming.length})
+                </span>
+              )}
+            </h3>
+            {upcoming.length === 0 ? (
+              <p className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-6 text-center text-sm text-gray-400">
+                No upcoming matches
+              </p>
+            ) : (
               <ul className="space-y-2">
                 {upcoming.map((row) => {
                   const extra = stageLabel(row.match.stage)
@@ -95,7 +120,7 @@ export function PlayerGamesModal({
                           {row.dayLabel}
                           {extra && ` · ${extra}`}
                         </span>
-                        <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-xs font-medium text-amber-900">
+                        <span className="shrink-0 rounded-full bg-amber-200/80 px-2 py-0.5 text-xs font-medium text-amber-900">
                           Upcoming
                         </span>
                       </div>
@@ -106,53 +131,7 @@ export function PlayerGamesModal({
                   )
                 })}
               </ul>
-            </section>
-          )}
-
-          <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              {played.length > 0 ? 'Results' : 'Matches'}
-            </h3>
-            {played.length === 0 && upcoming.length === 0 && (
-              <p className="py-6 text-center text-sm text-gray-400">No matches scheduled</p>
             )}
-            <ul className="space-y-2">
-              {played.map((row) => {
-                const extra = stageLabel(row.match.stage)
-                const result = row.result!
-                const winnerName = playerName(result.winnerId)
-
-                return (
-                  <li
-                    key={row.match.id}
-                    className={`rounded-xl border px-3 py-2.5 ${
-                      row.won
-                        ? 'border-green-100 bg-green-50/50'
-                        : 'border-gray-100 bg-gray-50/50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-gray-500">
-                        {row.dayLabel}
-                        {extra && ` · ${extra}`}
-                      </span>
-                      <span
-                        className={`text-xs font-bold ${
-                          row.won ? 'text-green-700' : 'text-red-600'
-                        }`}
-                      >
-                        {row.won ? 'W' : 'L'} · {row.matchPoints} pts
-                      </span>
-                    </div>
-                    <p className="mt-1 font-semibold text-gray-900">vs {row.opponentName}</p>
-                    <p className="mt-0.5 text-sm text-gray-600">
-                      Games: {row.scoreSummary}
-                    </p>
-                    <p className="text-xs text-gray-400">{winnerName} won the match</p>
-                  </li>
-                )
-              })}
-            </ul>
           </section>
         </div>
       </div>

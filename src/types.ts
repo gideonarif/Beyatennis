@@ -40,7 +40,10 @@ export interface StandingRow {
   played: number
   wins: number
   losses: number
+  /** Tournament ranking points (match outcome) */
   points: number
+  /** Sum of game points scored minus conceded across all group matches */
+  pointDifference: number
 }
 
 export interface TournamentState {

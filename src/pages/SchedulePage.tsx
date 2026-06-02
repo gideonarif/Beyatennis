@@ -19,8 +19,8 @@ interface SchedulePageProps {
     g1: GameScore,
     g2: GameScore,
     g3: GameScore | null,
+    isKnockout: boolean,
   ) => boolean
-  onClear: (matchId: string) => void
 }
 
 const GROUP_HEADERS = {
@@ -37,7 +37,6 @@ export function SchedulePage({
   podium,
   isAdmin,
   onSave,
-  onClear,
 }: SchedulePageProps) {
   const readOnly = !isAdmin
   const [day, setDay] = useState<Day>('Tue')
@@ -50,7 +49,7 @@ export function SchedulePage({
   const knockout = dayMatches.filter((m) => m.group === 'Knockout')
 
   const renderColumn = (label: string, color: string, columnMatches: Match[]) => (
-    <div className="flex-1 min-w-0">
+    <div className="w-full">
       <div
         className="mb-3 rounded-lg px-3 py-2 text-center text-sm font-bold text-white"
         style={{ backgroundColor: color }}
@@ -66,9 +65,16 @@ export function SchedulePage({
             locked={match.group === 'Knockout' && !groupStageComplete}
             readOnly={readOnly}
             onSave={(g1, g2, g3) =>
-              onSave(match.id, match.player1Id, match.player2Id, g1, g2, g3)
+              onSave(
+                match.id,
+                match.player1Id,
+                match.player2Id,
+                g1,
+                g2,
+                g3,
+                match.group === 'Knockout',
+              )
             }
-            onClear={isAdmin ? () => onClear(match.id) : undefined}
           />
         ))}
       </div>
@@ -104,15 +110,22 @@ export function SchedulePage({
                   locked={!groupStageComplete}
                   readOnly={readOnly}
                   onSave={(g1, g2, g3) =>
-                    onSave(match.id, match.player1Id, match.player2Id, g1, g2, g3)
+                    onSave(
+                      match.id,
+                      match.player1Id,
+                      match.player2Id,
+                      g1,
+                      g2,
+                      g3,
+                      true,
+                    )
                   }
-                  onClear={isAdmin ? () => onClear(match.id) : undefined}
                 />
               ))}
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="flex flex-col gap-6">
             {renderColumn(
               GROUP_HEADERS.A.label,
               GROUP_HEADERS.A.color,

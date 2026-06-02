@@ -130,9 +130,10 @@ export function useTournament() {
       g2: GameScore,
       g3: GameScore | null,
       isAdmin = true,
+      isKnockout = false,
     ) => {
       if (!isAdmin) return false
-      const result = computeResult(player1Id, player2Id, g1, g2, g3)
+      const result = computeResult(player1Id, player2Id, g1, g2, g3, isKnockout)
       if (!result) return false
 
       setResults((prev) => {

@@ -32,7 +32,6 @@ function App() {
     syncError,
     isCloudEnabled,
     saveResult,
-    clearResult,
   } = useTournament()
   const { error: profileError } = usePlayerProfiles()
 
@@ -88,10 +87,9 @@ function App() {
             tournamentComplete={tournamentComplete}
             podium={podium}
             isAdmin={isAdmin}
-            onSave={(matchId, p1, p2, g1, g2, g3) =>
-              saveResult(matchId, p1, p2, g1, g2, g3, isAdmin)
+            onSave={(matchId, p1, p2, g1, g2, g3, isKnockout) =>
+              saveResult(matchId, p1, p2, g1, g2, g3, isAdmin, isKnockout)
             }
-            onClear={clearResult}
           />
         )}
         {!loading && tab === 'standings' && <StandingsPage results={results} />}

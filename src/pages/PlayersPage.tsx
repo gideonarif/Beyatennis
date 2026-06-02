@@ -50,7 +50,7 @@ export function PlayersPage({ matches, results, isAdmin }: PlayersPageProps) {
     <div className="px-4 py-4">
       <h1 className="mb-1 text-xl font-bold text-gray-900">Players</h1>
       <p className="mb-4 text-xs text-gray-500">
-        Tap a player for matches
+        Tap a player for points and upcoming games
         {isAdmin && isCloudEnabled && ' · long-press or use modal to upload photo'}
       </p>
       {renderGroup('Group A', '#1565C0', groupA)}

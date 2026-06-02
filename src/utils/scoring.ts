@@ -1,9 +1,30 @@
 import type { GameScore, Result } from '../types'
 
+/** First to 21 wins before deuce; from 20–20, need a 2-point lead. */
+export function getGameWinner(score: GameScore): 'p1' | 'p2' | null {
+  const { p1, p2 } = score
+  if (p1 === null || p2 === null) return null
+  if (p1 === p2) return null
+
+  const high = Math.max(p1, p2)
+  const low = Math.min(p1, p2)
+  const diff = high - low
+
+  // Won before deuce zone (e.g. 21–19, 21–18)
+  if (low <= 19 && high >= 21) {
+    return p1 > p2 ? 'p1' : 'p2'
+  }
+
+  // Deuce / extended play (both at 20+): 2-point clearance
+  if (low >= 20 && diff >= 2) {
+    return p1 > p2 ? 'p1' : 'p2'
+  }
+
+  return null
+}
+
 function gameWinner(score: GameScore): 'p1' | 'p2' | null {
-  if (score.p1 === null || score.p2 === null) return null
-  if (score.p1 === score.p2) return null
-  return score.p1 > score.p2 ? 'p1' : 'p2'
+  return getGameWinner(score)
 }
 
 function gameWins(
@@ -23,7 +44,7 @@ function gameWins(
 }
 
 export function isGameComplete(score: GameScore): boolean {
-  return score.p1 !== null && score.p2 !== null && score.p1 !== score.p2
+  return getGameWinner(score) !== null
 }
 
 export function isGame3Unlocked(g1: GameScore, g2: GameScore): boolean {
@@ -55,22 +76,31 @@ export function computeResult(
   g1: GameScore,
   g2: GameScore,
   g3: GameScore | null,
+  isKnockout = false,
 ): Result | null {
   if (!canSubmitMatch(g1, g2, g3)) return null
 
   const { p1Wins, p2Wins } = gameWins(g1, g2, g3)
   const p1WonMatch = p1Wins > p2Wins
-  const wentToDecider = p1Wins === 1 && p2Wins === 1 && g3 !== null && isGameComplete(g3)
+  // Decider = split after G1+G2 only (including G3 in gameWins would hide a 2–1)
+  const wentToDecider =
+    isGame3Unlocked(g1, g2) && g3 !== null && isGameComplete(g3)
 
   let pointsP1: number
   let pointsP2: number
 
   if (wentToDecider) {
+    // 2–1 after three games: 3 ranking pts split 2 + 1
     pointsP1 = p1WonMatch ? 2 : 1
     pointsP2 = p1WonMatch ? 1 : 2
-  } else {
+  } else if (isKnockout) {
+    // Knockout 2–0 sweep: winner 3, loser 0
     pointsP1 = p1WonMatch ? 3 : 0
     pointsP2 = p1WonMatch ? 0 : 3
+  } else {
+    // Group stage 2–0 sweep: winner 2, loser 0
+    pointsP1 = p1WonMatch ? 2 : 0
+    pointsP2 = p1WonMatch ? 0 : 2
   }
 
   return {

@@ -1,6 +1,32 @@
 import { GROUP_PLAYER_ORDER, playerMap } from '../data/players'
 import { GROUP_MATCHES } from '../data/schedule'
-import type { Match, Result, StandingRow } from '../types'
+import type { GameScore, Match, Result, StandingRow } from '../types'
+
+function groupMatches(group: 'A' | 'B'): Match[] {
+  return GROUP_MATCHES.filter((m) => m.group === group)
+}
+
+function playerGamePoints(
+  playerId: string,
+  match: Match,
+  result: Result,
+): { scored: number; conceded: number } {
+  const games = [result.game1, result.game2, result.game3].filter(
+    (g): g is GameScore => g !== null && g.p1 !== null && g.p2 !== null,
+  )
+
+  let scored = 0
+  let conceded = 0
+
+  for (const g of games) {
+    const mine = match.player1Id === playerId ? g.p1! : g.p2!
+    const theirs = match.player1Id === playerId ? g.p2! : g.p1!
+    scored += mine
+    conceded += theirs
+  }
+
+  return { scored, conceded }
+}
 
 function buildStandingRows(
   group: 'A' | 'B',
@@ -14,17 +40,24 @@ function buildStandingRows(
     wins: 0,
     losses: 0,
     points: 0,
+    pointDifference: 0,
   }))
 
   const rowMap = Object.fromEntries(rows.map((r) => [r.playerId, r]))
 
-  for (const match of GROUP_MATCHES.filter((m) => m.group === group)) {
+  for (const match of groupMatches(group)) {
     const result = results[match.id]
     if (!result) continue
 
     const p1 = rowMap[match.player1Id]
     const p2 = rowMap[match.player2Id]
     if (!p1 || !p2) continue
+
+    const p1Games = playerGamePoints(match.player1Id, match, result)
+    const p2Games = playerGamePoints(match.player2Id, match, result)
+
+    p1.pointDifference += p1Games.scored - p1Games.conceded
+    p2.pointDifference += p2Games.scored - p2Games.conceded
 
     p1.played++
     p2.played++
@@ -45,25 +78,77 @@ function buildStandingRows(
   return rows
 }
 
-/** Fixed roster order for the standings table UI */
+function findGroupMatch(
+  group: 'A' | 'B',
+  playerA: string,
+  playerB: string,
+): Match | undefined {
+  return groupMatches(group).find(
+    (m) =>
+      (m.player1Id === playerA && m.player2Id === playerB) ||
+      (m.player1Id === playerB && m.player2Id === playerA),
+  )
+}
+
+/** Negative → `a` ranks above `b`; positive → `b` above `a`; 0 → still tied. */
+function headToHeadCompare(
+  playerA: string,
+  playerB: string,
+  group: 'A' | 'B',
+  results: Record<string, Result>,
+): number {
+  const match = findGroupMatch(group, playerA, playerB)
+  if (!match) return 0
+
+  const result = results[match.id]
+  if (!result) return 0
+
+  if (result.winnerId === playerA) return -1
+  if (result.winnerId === playerB) return 1
+  return 0
+}
+
+export function compareStandingRows(
+  a: StandingRow,
+  b: StandingRow,
+  group: 'A' | 'B',
+  results: Record<string, Result>,
+): number {
+  if (b.points !== a.points) return b.points - a.points
+  if (b.pointDifference !== a.pointDifference) {
+    return b.pointDifference - a.pointDifference
+  }
+
+  const h2h = headToHeadCompare(a.playerId, b.playerId, group, results)
+  if (h2h !== 0) return h2h
+
+  if (b.wins !== a.wins) return b.wins - a.wins
+  return a.name.localeCompare(b.name)
+}
+
+function sortStandingRows(
+  rows: StandingRow[],
+  group: 'A' | 'B',
+  results: Record<string, Result>,
+): StandingRow[] {
+  return [...rows].sort((a, b) => compareStandingRows(a, b, group, results))
+}
+
+/** Group standings for the UI — ranked by points, then tie-breakers. */
 export function computeGroupStandings(
   group: 'A' | 'B',
   results: Record<string, Result>,
 ): StandingRow[] {
-  return buildStandingRows(group, results)
+  const rows = buildStandingRows(group, results)
+  return sortStandingRows(rows, group, results)
 }
 
-/** Ranked by points for knockout seeding */
+/** Same ranking order as the standings table (knockout seeding). */
 export function computeRankedStandings(
   group: 'A' | 'B',
   results: Record<string, Result>,
 ): StandingRow[] {
-  const rows = buildStandingRows(group, results)
-  return [...rows].sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points
-    if (b.wins !== a.wins) return b.wins - a.wins
-    return a.name.localeCompare(b.name)
-  })
+  return computeGroupStandings(group, results)
 }
 
 export function isGroupStageComplete(results: Record<string, Result>): boolean {

@@ -42,6 +42,7 @@ Without `.env`, the app falls back to **browser localStorage** for scores only (
 
 ## Scoring rules
 
-- Best of 3 games
-- **2–0** → winner 3 pts, loser 0 pts
-- **1–1** → Game 3; winner 2 pts, loser 1 pt
+- Each game: first to **21** points; at **20–20**, play continues until one player leads by **2**
+- Best of 3 games (match)
+- **Group stage:** **2–0** → winner **2** pts, loser **0**; **2–1** (Game 3) → winner **2**, loser **1** (3 pts split)
+- **Knockout:** **2–0** → winner **3** pts, loser **0**; **2–1** → winner **2**, loser **1**

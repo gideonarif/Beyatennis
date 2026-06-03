@@ -1,4 +1,5 @@
-import type { GameScore, Result } from '../types'
+import type { GameScore, Match, Result } from '../types'
+import { getAllMatches } from './standings'
 
 /** First to 21 wins before deuce; from 20–20, need a 2-point lead. */
 export function getGameWinner(score: GameScore): 'p1' | 'p2' | null {
@@ -76,7 +77,7 @@ export function computeResult(
   g1: GameScore,
   g2: GameScore,
   g3: GameScore | null,
-  isKnockout = false,
+  _isKnockout = false,
 ): Result | null {
   if (!canSubmitMatch(g1, g2, g3)) return null
 
@@ -90,17 +91,13 @@ export function computeResult(
   let pointsP2: number
 
   if (wentToDecider) {
-    // 2–1 after three games: 3 ranking pts split 2 + 1
+    // 2–1 after three games: winner 2, loser 1
     pointsP1 = p1WonMatch ? 2 : 1
     pointsP2 = p1WonMatch ? 1 : 2
-  } else if (isKnockout) {
-    // Knockout 2–0 sweep: winner 3, loser 0
+  } else {
+    // 2–0 sweep (group and knockout): winner 3, loser 0
     pointsP1 = p1WonMatch ? 3 : 0
     pointsP2 = p1WonMatch ? 0 : 3
-  } else {
-    // Group stage 2–0 sweep: winner 2, loser 0
-    pointsP1 = p1WonMatch ? 2 : 0
-    pointsP2 = p1WonMatch ? 0 : 2
   }
 
   return {
@@ -117,4 +114,53 @@ export function computeResult(
 
 export function emptyGame(): GameScore {
   return { p1: null, p2: null }
+}
+
+/** Re-apply current ranking rules to a saved result (fixes stale points in storage). */
+export function normalizeResult(
+  match: Pick<Match, 'player1Id' | 'player2Id' | 'group'>,
+  stored: Result,
+): Result {
+  const fresh = computeResult(
+    match.player1Id,
+    match.player2Id,
+    stored.game1,
+    stored.game2,
+    stored.game3,
+    match.group === 'Knockout',
+  )
+  return fresh ?? stored
+}
+
+function resultMetadataChanged(before: Result, after: Result): boolean {
+  return (
+    before.pointsP1 !== after.pointsP1 ||
+    before.pointsP2 !== after.pointsP2 ||
+    before.winnerId !== after.winnerId ||
+    before.loserId !== after.loserId ||
+    before.wentToDecider !== after.wentToDecider
+  )
+}
+
+/** Repair all stored results so standings and profiles use current point rules. */
+export function repairStoredResults(results: Record<string, Result>): {
+  results: Record<string, Result>
+  changed: boolean
+} {
+  const matches = getAllMatches(results)
+  const next = { ...results }
+  let changed = false
+
+  for (const match of matches) {
+    const stored = next[match.id]
+    if (!stored) continue
+
+    const fixed = normalizeResult(match, stored)
+    if (resultMetadataChanged(stored, fixed)) {
+      next[match.id] = fixed
+      changed = true
+    }
+  }
+
+  return { results: next, changed }
 }

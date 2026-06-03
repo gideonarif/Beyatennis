@@ -33,6 +33,7 @@ export function PlayerGamesModal({
   onClose,
 }: PlayerGamesModalProps) {
   const { uploadAvatar, removeAvatar, isCloudEnabled } = usePlayerProfiles()
+  const completed = matches.filter((m) => !m.isUpcoming)
   const upcoming = matches.filter((m) => m.isUpcoming)
   const points = totalRankingPoints(matches)
 
@@ -92,6 +93,66 @@ export function PlayerGamesModal({
               <p className="text-3xl font-bold tabular-nums text-sky-600">{points}</p>
               <p className="mt-1 text-xs text-gray-500">Earned in group stage so far</p>
             </div>
+          </section>
+
+          <section className="mb-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Completed matches
+              {completed.length > 0 && (
+                <span className="ml-1.5 font-normal text-gray-400">
+                  ({completed.length})
+                </span>
+              )}
+            </h3>
+            {completed.length === 0 ? (
+              <p className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-6 text-center text-sm text-gray-400">
+                No completed matches yet
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {completed.map((row) => {
+                  const extra = stageLabel(row.match.stage)
+                  const pts = row.matchPoints ?? 0
+
+                  return (
+                    <li
+                      key={row.match.id}
+                      className={`rounded-xl border px-3 py-2.5 ${
+                        row.won
+                          ? 'border-green-100 bg-green-50/50'
+                          : 'border-gray-100 bg-gray-50/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-gray-500">
+                          {row.dayLabel}
+                          {extra
+                            ? ` · ${extra}`
+                            : row.match.group !== 'Knockout'
+                              ? ` · Group ${row.match.group}`
+                              : ''}
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
+                            row.won
+                              ? 'bg-sky-100 text-sky-700'
+                              : 'bg-gray-200 text-gray-600'
+                          }`}
+                        >
+                          {row.won ? 'W' : 'L'}
+                        </span>
+                      </div>
+                      <p className="mt-1 font-semibold text-gray-900">
+                        vs {row.opponentName}
+                      </p>
+                      <p className="mt-0.5 text-sm font-medium text-sky-600">
+                        +{pts} {pts === 1 ? 'point' : 'points'}
+                      </p>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </section>
 
           <section className="pb-2">

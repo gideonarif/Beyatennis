@@ -7,7 +7,7 @@ import {
   upsertResult,
 } from '../services/resultsService'
 import type { GameScore, Result } from '../types'
-import { computeResult } from '../utils/scoring'
+import { computeResult, repairStoredResults } from '../utils/scoring'
 import {
   getAllMatches,
   getPodium,
@@ -32,6 +32,12 @@ function saveLocalResults(results: Record<string, Result>) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(results))
 }
 
+function applyResultRepairs(raw: Record<string, Result>): Record<string, Result> {
+  const { results, changed } = repairStoredResults(raw)
+  if (changed) saveLocalResults(results)
+  return results
+}
+
 export function useTournament() {
   const [results, setResults] = useState<Record<string, Result>>({})
   const [loading, setLoading] = useState(isSupabaseConfigured)
@@ -39,7 +45,7 @@ export function useTournament() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      setResults(loadLocalResults())
+      setResults(applyResultRepairs(loadLocalResults()))
       setLoading(false)
       return
     }
@@ -63,11 +69,18 @@ export function useTournament() {
           saveLocalResults(local)
         }
 
-        if (!cancelled) setResults(remote)
+        if (!cancelled) {
+          const { results: repaired, changed } = repairStoredResults(remote)
+          setResults(repaired)
+          if (changed) {
+            saveLocalResults(repaired)
+            upsertManyResults(repaired).catch(() => {})
+          }
+        }
       } catch (e) {
         if (!cancelled) {
           setSyncError(e instanceof Error ? e.message : 'Failed to sync scores')
-          setResults(loadLocalResults())
+          setResults(applyResultRepairs(loadLocalResults()))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -98,7 +111,9 @@ export function useTournament() {
 
           const row = payload.new as { match_id?: string; result?: Result }
           if (row.match_id && row.result) {
-            setResults((prev) => ({ ...prev, [row.match_id!]: row.result! }))
+            setResults((prev) =>
+              applyResultRepairs({ ...prev, [row.match_id!]: row.result! }),
+            )
           }
         },
       )

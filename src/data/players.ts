@@ -1,7 +1,7 @@
 import type { Player } from '../types'
 
 export const GROUP_A_ORDER = ['naty', 'bereket', 'wogderes', 'dere', 'tade'] as const
-export const GROUP_B_ORDER = ['gedion', 'yetagesu', 'melaku', 'nafkot', 'kirubel'] as const
+export const GROUP_B_ORDER = ['gedion', 'yetagesu', 'melaku', 'nafkot', 'beya'] as const
 
 export const PLAYERS: Player[] = [
   { id: 'naty', name: 'Naty', group: 'A' },
@@ -13,7 +13,7 @@ export const PLAYERS: Player[] = [
   { id: 'yetagesu', name: 'Yetagesu', group: 'B' },
   { id: 'melaku', name: 'Melaku', group: 'B' },
   { id: 'nafkot', name: 'Nafkot', group: 'B' },
-  { id: 'kirubel', name: 'Kirubel', group: 'B' },
+  { id: 'beya', name: 'Beya', group: 'B' },
 ]
 
 export const GROUP_PLAYER_ORDER: Record<'A' | 'B', readonly string[]> = {

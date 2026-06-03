@@ -27,7 +27,7 @@ insert into public.players (id, name, "group") values
   ('yetagesu', 'Yetagesu', 'B'),
   ('melaku', 'Melaku', 'B'),
   ('nafkot', 'Nafkot', 'B'),
-  ('kirubel', 'Kirubel', 'B')
+  ('beya', 'Beya', 'B')
 on conflict (id) do nothing;
 
 alter table public.players enable row level security;

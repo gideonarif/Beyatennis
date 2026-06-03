@@ -20,7 +20,7 @@ const groupSchedule: Record<Exclude<Day, 'Sun'>, { A: ScheduledPair[]; B: Schedu
     ],
     B: [
       ['gedion', 'melaku'],
-      ['yetagesu', 'kirubel'],
+      ['yetagesu', 'beya'],
     ],
   },
   Thu: {
@@ -39,8 +39,8 @@ const groupSchedule: Record<Exclude<Day, 'Sun'>, { A: ScheduledPair[]; B: Schedu
       ['naty', 'tade'],
     ],
     B: [
-      ['gedion', 'kirubel'],
-      ['melaku', 'kirubel'],
+      ['gedion', 'beya'],
+      ['melaku', 'beya'],
     ],
   },
   Sat: {
@@ -50,7 +50,7 @@ const groupSchedule: Record<Exclude<Day, 'Sun'>, { A: ScheduledPair[]; B: Schedu
     ],
     B: [
       ['yetagesu', 'melaku'],
-      ['nafkot', 'kirubel'],
+      ['nafkot', 'beya'],
     ],
   },
 }

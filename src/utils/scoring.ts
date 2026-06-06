@@ -1,4 +1,7 @@
 import type { GameScore, Match, Result } from '../types'
+import type { ScoringRulesConfig } from '../types/tournament'
+import { getRankingPoints } from '../tournament/defaults'
+import type { TournamentRuntime } from '../tournament/runtime'
 import { getAllMatches } from './standings'
 
 /** First to 21 wins before deuce; from 20–20, need a 2-point lead. */
@@ -78,27 +81,25 @@ export function computeResult(
   g2: GameScore,
   g3: GameScore | null,
   _isKnockout = false,
+  rules?: ScoringRulesConfig,
 ): Result | null {
   if (!canSubmitMatch(g1, g2, g3)) return null
 
   const { p1Wins, p2Wins } = gameWins(g1, g2, g3)
   const p1WonMatch = p1Wins > p2Wins
-  // Decider = split after G1+G2 only (including G3 in gameWins would hide a 2–1)
   const wentToDecider =
     isGame3Unlocked(g1, g2) && g3 !== null && isGameComplete(g3)
 
-  let pointsP1: number
-  let pointsP2: number
-
-  if (wentToDecider) {
-    // 2–1 after three games: winner 2, loser 1
-    pointsP1 = p1WonMatch ? 2 : 1
-    pointsP2 = p1WonMatch ? 1 : 2
-  } else {
-    // 2–0 sweep (group and knockout): winner 3, loser 0
-    pointsP1 = p1WonMatch ? 3 : 0
-    pointsP2 = p1WonMatch ? 0 : 3
+  const scoring = rules ?? {
+    pointsPerGame: 21,
+    deuceAt: 20,
+    winBy: 2,
+    gamesToWin: 2,
+    pointsRules: [],
   }
+
+  const pointsP1 = getRankingPoints(scoring, wentToDecider, p1WonMatch)
+  const pointsP2 = getRankingPoints(scoring, wentToDecider, !p1WonMatch)
 
   return {
     game1: g1,
@@ -120,6 +121,7 @@ export function emptyGame(): GameScore {
 export function normalizeResult(
   match: Pick<Match, 'player1Id' | 'player2Id' | 'group'>,
   stored: Result,
+  rules?: ScoringRulesConfig,
 ): Result {
   const fresh = computeResult(
     match.player1Id,
@@ -128,35 +130,46 @@ export function normalizeResult(
     stored.game2,
     stored.game3,
     match.group === 'Knockout',
+    rules,
   )
   return fresh ?? stored
 }
 
-function resultMetadataChanged(before: Result, after: Result): boolean {
-  return (
-    before.pointsP1 !== after.pointsP1 ||
-    before.pointsP2 !== after.pointsP2 ||
-    before.winnerId !== after.winnerId ||
-    before.loserId !== after.loserId ||
-    before.wentToDecider !== after.wentToDecider
-  )
-}
-
 /** Repair all stored results so standings and profiles use current point rules. */
-export function repairStoredResults(results: Record<string, Result>): {
+export function repairStoredResults(
+  runtime: TournamentRuntime,
+  results: Record<string, Result>,
+): {
   results: Record<string, Result>
   changed: boolean
 } {
-  const matches = getAllMatches(results)
+  const matches = getAllMatches(runtime, results)
   const next = { ...results }
   let changed = false
+  const rules = runtime.config.scoringRules
 
   for (const match of matches) {
     const stored = next[match.id]
     if (!stored) continue
 
-    const fixed = normalizeResult(match, stored)
-    if (resultMetadataChanged(stored, fixed)) {
+    const fresh = computeResult(
+      match.player1Id,
+      match.player2Id,
+      stored.game1,
+      stored.game2,
+      stored.game3,
+      match.group === 'Knockout',
+      rules,
+    )
+    const fixed = fresh ?? stored
+
+    if (
+      stored.pointsP1 !== fixed.pointsP1 ||
+      stored.pointsP2 !== fixed.pointsP2 ||
+      stored.winnerId !== fixed.winnerId ||
+      stored.loserId !== fixed.loserId ||
+      stored.wentToDecider !== fixed.wentToDecider
+    ) {
       next[match.id] = fixed
       changed = true
     }

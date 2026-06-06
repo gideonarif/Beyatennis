@@ -1,12 +1,12 @@
-export type Day = 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun'
-export type Group = 'A' | 'B' | 'Knockout'
+export type Day = string
+export type Group = string
 export type Stage = 'group' | 'semifinal' | 'third_place' | 'final'
 export type Tab = 'schedule' | 'standings' | 'bracket' | 'players'
 
 export interface Player {
   id: string
   name: string
-  group: 'A' | 'B'
+  group: string
 }
 
 export interface Match {

@@ -1,4 +1,4 @@
-import { DAY_LABELS } from '../data/schedule'
+import { formatDayLabel } from '../tournament/scheduleDays'
 import { playerName } from '../data/players'
 import { getGameWinner } from './scoring'
 import type { GameScore, Match, Result } from '../types'
@@ -62,7 +62,7 @@ export function getMatchResultDisplay(
 
   return {
     title: matchTitle(match),
-    subtitle: DAY_LABELS[match.day],
+    subtitle: formatDayLabel(match.day),
     player1: {
       playerId: match.player1Id,
       name: playerName(match.player1Id),

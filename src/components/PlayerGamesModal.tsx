@@ -1,6 +1,7 @@
 import { usePlayerProfiles } from '../context/PlayerProfilesContext'
 import type { Player } from '../types'
 import type { PlayerMatchRow } from '../utils/playerMatches'
+import { getPlayerStats } from '../utils/playerMatches'
 import { Avatar } from './Avatar'
 import { MatchPlayersFaceoff } from './MatchPlayersFaceoff'
 import { ProfilePhotoUpload } from './ProfilePhotoUpload'
@@ -19,13 +20,6 @@ function stageLabel(stage: PlayerMatchRow['match']['stage']): string | null {
   return null
 }
 
-function totalRankingPoints(matches: PlayerMatchRow[]): number {
-  return matches.reduce((sum, row) => {
-    if (row.isUpcoming || row.match.group === 'Knockout') return sum
-    return sum + (row.matchPoints ?? 0)
-  }, 0)
-}
-
 export function PlayerGamesModal({
   player,
   matches,
@@ -35,7 +29,8 @@ export function PlayerGamesModal({
   const { uploadAvatar, removeAvatar, isCloudEnabled } = usePlayerProfiles()
   const completed = matches.filter((m) => !m.isUpcoming)
   const upcoming = matches.filter((m) => m.isUpcoming)
-  const points = totalRankingPoints(matches)
+  const stats = getPlayerStats(matches)
+  const points = stats.points
 
   return (
     <div
@@ -87,17 +82,19 @@ export function PlayerGamesModal({
 
           <section className="mb-4">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Ranking points
+              Statistics
             </h3>
-            <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-center">
-              <p className="text-3xl font-bold tabular-nums text-sky-600">{points}</p>
-              <p className="mt-1 text-xs text-gray-500">Earned in group stage so far</p>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <StatBox label="Played" value={stats.played} />
+              <StatBox label="Wins" value={stats.wins} color="text-green-600" />
+              <StatBox label="Losses" value={stats.losses} color="text-red-600" />
+              <StatBox label="Points" value={points} color="text-sky-600" />
             </div>
           </section>
 
           <section className="mb-4">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Completed matches
+              Match history
               {completed.length > 0 && (
                 <span className="ml-1.5 font-normal text-gray-400">
                   ({completed.length})
@@ -142,11 +139,9 @@ export function PlayerGamesModal({
                           {row.won ? 'W' : 'L'}
                         </span>
                       </div>
-                      <p className="mt-1 font-semibold text-gray-900">
-                        vs {row.opponentName}
-                      </p>
                       <p className="mt-0.5 text-sm font-medium text-sky-600">
-                        +{pts} {pts === 1 ? 'point' : 'points'}
+                        {row.won ? 'Won' : 'Lost'} vs {row.opponentName}
+                        {' · '}+{pts} {pts === 1 ? 'point' : 'points'}
                       </p>
                     </li>
                   )
@@ -204,6 +199,23 @@ export function PlayerGamesModal({
           </section>
         </div>
       </div>
+    </div>
+  )
+}
+
+function StatBox({
+  label,
+  value,
+  color = 'text-gray-900',
+}: {
+  label: string
+  value: number
+  color?: string
+}) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50 px-2 py-2">
+      <p className={`text-lg font-bold tabular-nums ${color}`}>{value}</p>
+      <p className="text-[10px] uppercase text-gray-500">{label}</p>
     </div>
   )
 }

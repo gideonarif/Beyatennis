@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
-import { GROUP_A_ORDER, GROUP_B_ORDER, playerMap } from '../data/players'
 import { Avatar } from '../components/Avatar'
 import { PlayerGamesModal } from '../components/PlayerGamesModal'
 import { usePlayerProfiles } from '../context/PlayerProfilesContext'
+import { useTournamentRuntime } from '../context/ActiveTournamentContext'
 import type { Match, Player, Result } from '../types'
 import { getPlayerMatches } from '../utils/playerMatches'
 
@@ -12,15 +12,17 @@ interface PlayersPageProps {
   isAdmin: boolean
 }
 
+const GROUP_COLORS = ['#1565C0', '#2E7D32', '#6A1B9A', '#E65100', '#00838F', '#AD1457']
+
 export function PlayersPage({ matches, results, isAdmin }: PlayersPageProps) {
+  const runtime = useTournamentRuntime()
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
   const { uploadAvatar, isCloudEnabled } = usePlayerProfiles()
 
-  const groupA = GROUP_A_ORDER.map((id) => playerMap[id]).filter(Boolean)
-  const groupB = GROUP_B_ORDER.map((id) => playerMap[id]).filter(Boolean)
+  const groupIds = runtime.getGroupIds()
 
   const selectedMatches = selectedPlayer
-    ? getPlayerMatches(selectedPlayer.id, matches, results)
+    ? getPlayerMatches(selectedPlayer.id, matches, results, runtime.getPlayerName)
     : []
 
   const renderGroup = (title: string, color: string, players: Player[]) => (
@@ -53,8 +55,12 @@ export function PlayersPage({ matches, results, isAdmin }: PlayersPageProps) {
         Tap a player for match history and upcoming games
         {isAdmin && isCloudEnabled && ' · long-press or use modal to upload photo'}
       </p>
-      {renderGroup('Group A', '#1565C0', groupA)}
-      {renderGroup('Group B', '#2E7D32', groupB)}
+      {groupIds.map((group, index) => {
+        const ids = runtime.groupPlayerOrder[group] ?? []
+        const players = ids.map((id) => runtime.playerMap[id]).filter(Boolean)
+        const title = groupIds.length === 1 ? 'Participants' : `Group ${group}`
+        return renderGroup(title, GROUP_COLORS[index % GROUP_COLORS.length], players)
+      })}
 
       {selectedPlayer && (
         <PlayerGamesModal

@@ -20,6 +20,7 @@ interface MatchCardProps {
     g2: GameScore,
     g3: GameScore | null,
   ) => boolean
+  onReset?: () => void
 }
 
 function parseScore(value: string): number | null {
@@ -28,24 +29,34 @@ function parseScore(value: string): number | null {
   return Number.isNaN(n) ? null : n
 }
 
+function scoresMatch(a: GameScore, b: GameScore): boolean {
+  return a.p1 === b.p1 && a.p2 === b.p2
+}
+
 export function MatchCard({
   match,
   result,
   locked = false,
   readOnly = false,
   onSave,
+  onReset,
 }: MatchCardProps) {
   const [g1, setG1] = useState<GameScore>(result?.game1 ?? emptyGame())
   const [g2, setG2] = useState<GameScore>(result?.game2 ?? emptyGame())
   const [g3, setG3] = useState<GameScore | null>(result?.game3 ?? emptyGame())
-  const [saved, setSaved] = useState(!!result)
+  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     if (result) {
       setG1(result.game1)
       setG2(result.game2)
       setG3(result.game3 ?? emptyGame())
-      setSaved(true)
+      setIsEditing(false)
+    } else {
+      setG1(emptyGame())
+      setG2(emptyGame())
+      setG3(emptyGame())
+      setIsEditing(false)
     }
   }, [result])
 
@@ -64,20 +75,50 @@ export function MatchCard({
       )
     : null
 
-  const showResultBoard = result && (readOnly || saved)
+  const showResultBoard = result && !isEditing
+  const isDirty =
+    isEditing &&
+    result &&
+    (!scoresMatch(g1, result.game1) ||
+      !scoresMatch(g2, result.game2) ||
+      !scoresMatch(g3 ?? emptyGame(), result.game3 ?? emptyGame()))
 
   const handleSave = () => {
     const ok = onSave(g1, g2, game3Unlocked ? g3 : null)
-    if (ok) setSaved(true)
+    if (ok) setIsEditing(false)
   }
 
-  const handleEdit = () => {
+  const handleEditScore = () => {
     if (result) {
       setG1(result.game1)
       setG2(result.game2)
       setG3(result.game3 ?? emptyGame())
     }
-    setSaved(false)
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    if (result) {
+      setG1(result.game1)
+      setG2(result.game2)
+      setG3(result.game3 ?? emptyGame())
+    }
+    setIsEditing(false)
+  }
+
+  const handleResetMatch = () => {
+    if (
+      !window.confirm(
+        'Reset this match? All scores will be cleared and must be re-entered.',
+      )
+    ) {
+      return
+    }
+    onReset?.()
+    setG1(emptyGame())
+    setG2(emptyGame())
+    setG3(emptyGame())
+    setIsEditing(false)
   }
 
   const updateGame = (
@@ -85,7 +126,6 @@ export function MatchCard({
     player: 'p1' | 'p2',
     value: string,
   ) => {
-    setSaved(false)
     const score = parseScore(value)
     if (game === 1) setG1((prev) => ({ ...prev, [player]: score }))
     else if (game === 2) setG2((prev) => ({ ...prev, [player]: score }))
@@ -106,9 +146,11 @@ export function MatchCard({
           ? 'Final'
           : null
 
+  const saveLabel = result && isEditing ? 'Save Changes' : 'Save Score'
+
   return (
     <article
-      className={`rounded-2xl bg-white p-4 shadow-sm ${
+      className={`min-w-0 w-full rounded-2xl bg-white p-4 shadow-sm ${
         locked ? 'opacity-60' : ''
       } ${result && showResultBoard ? 'ring-2 ring-sky-100' : ''}`}
     >
@@ -118,7 +160,7 @@ export function MatchCard({
         </p>
       )}
 
-      {locked && !showResultBoard && (
+      {locked && !showResultBoard && !isEditing && (
         <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-center text-xs text-amber-800">
           Locked until group stage completes
         </p>
@@ -202,7 +244,13 @@ export function MatchCard({
         </>
       )}
 
-      {preview && !saved && !readOnly && (
+      {isEditing && isDirty && !readOnly && (
+        <p className="mb-2 mt-2 text-center text-xs font-medium text-amber-700">
+          Unsaved changes — tap Save Changes to apply
+        </p>
+      )}
+
+      {preview && (isEditing || !result) && !readOnly && (
         <p className="mb-2 mt-2 text-center text-xs text-gray-500">
           {playerName(preview.winnerId)} wins the match
           {preview.wentToDecider && ' · Decider'}
@@ -210,28 +258,47 @@ export function MatchCard({
       )}
 
       {!readOnly && !locked && (
-        <div className="mt-3 flex gap-2">
-          {canSubmit && !showResultBoard && (
+        <div className="mt-3 flex flex-col gap-2">
+          {canSubmit && (isEditing || !result) && (
             <button
               type="button"
               onClick={handleSave}
-              className="flex-1 rounded-xl bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              className="w-full rounded-xl bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
-              Save Score
+              {saveLabel}
             </button>
           )}
-        </div>
-      )}
 
-      {showResultBoard && !readOnly && (
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={handleEdit}
-            className="w-full rounded-xl border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            Edit
-          </button>
+          {showResultBoard && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleEditScore}
+                className="flex-1 rounded-xl border border-gray-200 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Edit Score
+              </button>
+              {onReset && (
+                <button
+                  type="button"
+                  onClick={handleResetMatch}
+                  className="flex-1 rounded-xl border border-red-200 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  Reset Match
+                </button>
+              )}
+            </div>
+          )}
+
+          {isEditing && result && (
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="w-full rounded-xl border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       )}
     </article>

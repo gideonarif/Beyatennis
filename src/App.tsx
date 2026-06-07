@@ -14,7 +14,7 @@ function App() {
   const [view, setView] = useState<AppView>('home')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editReturnTo, setEditReturnTo] = useState<'home' | 'tournament'>('home')
-  const { summaries, create, updateFromDraft, remove, refresh, configToDraft } = useTournaments()
+  const { summaries, create, updateFromDraft, remove, refresh, configToDraft, loading, syncError, isCloudEnabled } = useTournaments()
   const {
     role,
     isAdmin,
@@ -112,6 +112,9 @@ function App() {
       <TournamentHomePage
         tournaments={summaries}
         isAdmin={isAdmin}
+        loading={loading}
+        syncError={syncError}
+        isCloudEnabled={isCloudEnabled}
         onOpen={(id) => {
           setSelectedId(id)
           setView('tournament')

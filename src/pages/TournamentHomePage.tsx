@@ -7,6 +7,9 @@ type FilterStatus = 'all' | TournamentStatus
 interface TournamentHomePageProps {
   tournaments: TournamentSummary[]
   isAdmin: boolean
+  loading?: boolean
+  syncError?: string | null
+  isCloudEnabled?: boolean
   onOpen: (id: string) => void
   onCreate?: () => void
   onEdit?: (id: string) => void
@@ -49,6 +52,9 @@ function TournamentThumbnail({ name, imageUrl }: { name: string; imageUrl: strin
 export function TournamentHomePage({
   tournaments,
   isAdmin,
+  loading = false,
+  syncError = null,
+  isCloudEnabled = false,
   onOpen,
   onCreate,
   onEdit,
@@ -81,7 +87,14 @@ export function TournamentHomePage({
     <div className="mx-auto min-h-dvh max-w-lg bg-[#f0f2f5] pb-8">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 px-4 py-4 backdrop-blur">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold text-gray-900">Tournaments</h1>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Tournaments</h1>
+            {isCloudEnabled && (
+              <p className="text-xs text-gray-500">
+                {loading ? 'Syncing with cloud…' : 'Cloud sync enabled'}
+              </p>
+            )}
+          </div>
           {isAdmin && onCreate && (
             <button
               type="button"
@@ -118,6 +131,12 @@ export function TournamentHomePage({
           ))}
         </div>
       </header>
+
+      {syncError && (
+        <div className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+          {syncError}
+        </div>
+      )}
 
       <main className="px-4 py-4">
         {filtered.length === 0 ? (

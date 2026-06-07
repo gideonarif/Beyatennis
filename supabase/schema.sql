@@ -11,8 +11,17 @@ create table if not exists public.players (
 
 -- Match results (JSON matches app Result type)
 create table if not exists public.match_results (
-  match_id text primary key,
+  match_id text not null,
+  tournament_id text not null default 'hawassa-open-2026',
   result jsonb not null,
+  updated_at timestamptz not null default now(),
+  primary key (match_id, tournament_id)
+);
+
+-- Tournament definitions (full config JSON)
+create table if not exists public.tournaments (
+  id text primary key,
+  config jsonb not null,
   updated_at timestamptz not null default now()
 );
 
@@ -32,6 +41,7 @@ on conflict (id) do nothing;
 
 alter table public.players enable row level security;
 alter table public.match_results enable row level security;
+alter table public.tournaments enable row level security;
 
 create policy "players_select" on public.players for select using (true);
 create policy "players_update" on public.players for update using (true);
@@ -39,6 +49,10 @@ create policy "match_results_select" on public.match_results for select using (t
 create policy "match_results_insert" on public.match_results for insert with check (true);
 create policy "match_results_update" on public.match_results for update using (true);
 create policy "match_results_delete" on public.match_results for delete using (true);
+create policy "tournaments_select" on public.tournaments for select using (true);
+create policy "tournaments_insert" on public.tournaments for insert with check (true);
+create policy "tournaments_update" on public.tournaments for update using (true);
+create policy "tournaments_delete" on public.tournaments for delete using (true);
 
 -- Profile photos bucket (public read)
 insert into storage.buckets (id, name, public)
@@ -60,3 +74,4 @@ create policy "avatars_delete" on storage.objects
 -- Realtime (enable in Dashboard → Database → Replication if needed)
 alter publication supabase_realtime add table public.match_results;
 alter publication supabase_realtime add table public.players;
+alter publication supabase_realtime add table public.tournaments;

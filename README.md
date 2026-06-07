@@ -25,11 +25,16 @@ npm run dev
 
 | Data | Table / Storage |
 |------|-----------------|
-| Match scores | `match_results` (synced live across devices) |
+| **Tournaments** | `tournaments` (syncs across phone, laptop, etc.) |
+| Match scores | `match_results` (per tournament, live sync) |
 | Profile photo URLs | `players.avatar_url` |
 | Image files | Storage bucket `player-avatars` |
 
-Without `.env`, the app falls back to **browser localStorage** for scores only (no photo uploads).
+Without `.env`, the app falls back to **browser localStorage** only (data stays on that device).
+
+### Existing Supabase projects
+
+If you already ran an older `schema.sql`, also run [`supabase/tournaments_cloud.sql`](supabase/tournaments_cloud.sql) in the SQL Editor to add the tournaments table and scope scores by tournament.
 
 ## Features
 

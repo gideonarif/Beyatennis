@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import {
   deleteResult,
-  fetchAllResults,
+  fetchResultsForTournament,
   upsertManyResults,
   upsertResult,
 } from '../services/resultsService'
@@ -17,7 +17,9 @@ import {
   isTournamentComplete,
 } from '../utils/standings'
 
-const MIGRATED_KEY = 'ttt-migrated-to-supabase'
+function resultsMigratedKey(tournamentId: string): string {
+  return `ttt-results-migrated-${tournamentId}`
+}
 
 function loadLocalResults(key: string): Record<string, Result> {
   try {
@@ -44,7 +46,8 @@ function applyResultRepairs(
 }
 
 export function useTournament(runtime: TournamentRuntime) {
-  const storageKey = resultsStorageKey(runtime.config.id)
+  const tournamentId = runtime.config.id
+  const storageKey = resultsStorageKey(tournamentId)
   const [results, setResults] = useState<Record<string, Result>>({})
   const [loading, setLoading] = useState(isSupabaseConfigured)
   const [syncError, setSyncError] = useState<string | null>(null)
@@ -61,26 +64,26 @@ export function useTournament(runtime: TournamentRuntime) {
     async function init() {
       try {
         setSyncError(null)
-        let remote = await fetchAllResults()
+        let remote = await fetchResultsForTournament(tournamentId)
 
         const local = loadLocalResults(storageKey)
         const hasLocal = Object.keys(local).length > 0
         const hasRemote = Object.keys(remote).length > 0
-        const alreadyMigrated = localStorage.getItem(MIGRATED_KEY) === '1'
+        const alreadyMigrated = localStorage.getItem(resultsMigratedKey(tournamentId)) === '1'
 
         if (hasLocal && !hasRemote && !alreadyMigrated) {
-          await upsertManyResults(local)
+          await upsertManyResults(tournamentId, local)
           remote = local
-          localStorage.setItem(MIGRATED_KEY, '1')
+          localStorage.setItem(resultsMigratedKey(tournamentId), '1')
           saveLocalResults(storageKey, local)
         }
 
         if (!cancelled) {
           const { results: repaired, changed } = repairStoredResults(runtime, remote)
           setResults(repaired)
+          saveLocalResults(storageKey, repaired)
           if (changed) {
-            saveLocalResults(storageKey, repaired)
-            upsertManyResults(repaired).catch(() => {})
+            upsertManyResults(tournamentId, repaired).catch(() => {})
           }
         }
       } catch (e) {
@@ -93,15 +96,21 @@ export function useTournament(runtime: TournamentRuntime) {
       }
     }
 
-    init()
+    void init()
 
     if (!supabase) return
 
-    const channel = supabase
-      .channel(`match-results-${runtime.config.id}`)
+    const client = supabase
+    const channel = client
+      .channel(`match-results-${tournamentId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'match_results' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'match_results',
+          filter: `tournament_id=eq.${tournamentId}`,
+        },
         (payload) => {
           if (payload.eventType === 'DELETE') {
             const old = payload.old as { match_id?: string }
@@ -109,6 +118,7 @@ export function useTournament(runtime: TournamentRuntime) {
               setResults((prev) => {
                 const next = { ...prev }
                 delete next[old.match_id!]
+                saveLocalResults(storageKey, next)
                 return next
               })
             }
@@ -117,13 +127,15 @@ export function useTournament(runtime: TournamentRuntime) {
 
           const row = payload.new as { match_id?: string; result?: Result }
           if (row.match_id && row.result) {
-            setResults((prev) =>
-              applyResultRepairs(
+            setResults((prev) => {
+              const next = applyResultRepairs(
                 runtime,
                 { ...prev, [row.match_id!]: row.result! },
                 storageKey,
-              ),
-            )
+              )
+              saveLocalResults(storageKey, next)
+              return next
+            })
           }
         },
       )
@@ -131,9 +143,9 @@ export function useTournament(runtime: TournamentRuntime) {
 
     return () => {
       cancelled = true
-      void supabase?.removeChannel(channel)
+      void client.removeChannel(channel)
     }
-  }, [runtime, storageKey])
+  }, [runtime, storageKey, tournamentId])
 
   const matches = useMemo(() => getAllMatches(runtime, results), [runtime, results])
   const groupStageComplete = useMemo(
@@ -180,7 +192,7 @@ export function useTournament(runtime: TournamentRuntime) {
 
       if (!isSupabaseConfigured) return true
 
-      upsertResult(matchId, result).then(
+      upsertResult(tournamentId, matchId, result).then(
         () => setSyncError(null),
         (e) => {
           setSyncError(e instanceof Error ? e.message : 'Failed to save score')
@@ -195,7 +207,7 @@ export function useTournament(runtime: TournamentRuntime) {
 
       return true
     },
-    [runtime, storageKey],
+    [runtime, storageKey, tournamentId],
   )
 
   const clearResult = useCallback(
@@ -209,11 +221,11 @@ export function useTournament(runtime: TournamentRuntime) {
 
       if (!isSupabaseConfigured) return
 
-      deleteResult(matchId).catch((e) => {
+      deleteResult(tournamentId, matchId).catch((e) => {
         setSyncError(e instanceof Error ? e.message : 'Failed to clear score')
       })
     },
-    [storageKey],
+    [storageKey, tournamentId],
   )
 
   return {

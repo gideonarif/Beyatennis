@@ -162,6 +162,13 @@ export function saveTournament(config: TournamentConfig) {
   saveAll(next)
 }
 
+/** Replace the full local tournament list (used after cloud sync). */
+export function replaceAllTournaments(tournaments: TournamentConfig[]): TournamentConfig[] {
+  const repaired = repairMissingSchedules(tournaments)
+  saveAll(repaired)
+  return repaired
+}
+
 export function updateTournamentFromDraft(
   existing: TournamentConfig,
   draft: CreateTournamentDraft,

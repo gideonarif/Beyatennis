@@ -71,7 +71,21 @@ create policy "avatars_update" on storage.objects
 create policy "avatars_delete" on storage.objects
   for delete using (bucket_id = 'player-avatars');
 
+-- Site appearance settings
+create table if not exists public.site_settings (
+  id text primary key,
+  appearance jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_settings enable row level security;
+
+create policy "site_settings_select" on public.site_settings for select using (true);
+create policy "site_settings_insert" on public.site_settings for insert with check (true);
+create policy "site_settings_update" on public.site_settings for update using (true);
+
 -- Realtime (enable in Dashboard → Database → Replication if needed)
 alter publication supabase_realtime add table public.match_results;
 alter publication supabase_realtime add table public.players;
 alter publication supabase_realtime add table public.tournaments;
+alter publication supabase_realtime add table public.site_settings;

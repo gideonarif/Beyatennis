@@ -14,6 +14,10 @@ import {
   updateTournamentFromDraft,
 } from '../services/tournamentStorage'
 import { deleteResultsForTournament, upsertManyResults } from '../services/resultsService'
+import {
+  removeTournamentBanner,
+  uploadTournamentBanner,
+} from '../services/mediaService'
 import { syncTournamentsWithCloud } from '../services/tournamentSync'
 import {
   deleteTournamentRemote,
@@ -21,10 +25,51 @@ import {
 } from '../services/tournamentsService'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
+export interface TournamentBannerOptions {
+  bannerFile?: File | null
+  removeBanner?: boolean
+}
+
+async function applyTournamentBanner(
+  config: TournamentConfig,
+  options?: TournamentBannerOptions,
+): Promise<TournamentConfig> {
+  if (!options?.bannerFile && !options?.removeBanner) return config
+
+  const now = new Date().toISOString()
+
+  if (options.removeBanner) {
+    await removeTournamentBanner(config.id)
+    return { ...config, imageUrl: null, updatedAt: now }
+  }
+
+  if (options.bannerFile) {
+    const imageUrl = await uploadTournamentBanner(config.id, options.bannerFile)
+    return { ...config, imageUrl, updatedAt: now }
+  }
+
+  return config
+}
+
 export function useTournaments() {
   const [tournaments, setTournaments] = useState<TournamentConfig[]>(() => listTournaments())
   const [loading, setLoading] = useState(isSupabaseConfigured)
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [cloudSetupNeeded, setCloudSetupNeeded] = useState(false)
+
+  const applySyncResult = useCallback(
+    (result: Awaited<ReturnType<typeof syncTournamentsWithCloud>>) => {
+      setTournaments(result.tournaments)
+      if (result.cloudWarning) {
+        setCloudSetupNeeded(true)
+        setSyncError(result.cloudWarning)
+      } else {
+        setCloudSetupNeeded(false)
+        setSyncError(null)
+      }
+    },
+    [],
+  )
 
   const refreshLocal = useCallback(() => {
     setTournaments(listTournaments())
@@ -37,14 +82,14 @@ export function useTournaments() {
     }
 
     try {
-      setSyncError(null)
-      const merged = await syncTournamentsWithCloud()
-      setTournaments(merged)
+      const result = await syncTournamentsWithCloud()
+      applySyncResult(result)
     } catch (e) {
+      setCloudSetupNeeded(false)
       setSyncError(e instanceof Error ? e.message : 'Failed to sync tournaments')
       refreshLocal()
     }
-  }, [refreshLocal])
+  }, [applySyncResult, refreshLocal])
 
   useEffect(() => {
     let cancelled = false
@@ -57,11 +102,11 @@ export function useTournaments() {
       }
 
       try {
-        setSyncError(null)
-        const merged = await syncTournamentsWithCloud()
-        if (!cancelled) setTournaments(merged)
+        const result = await syncTournamentsWithCloud()
+        if (!cancelled) applySyncResult(result)
       } catch (e) {
         if (!cancelled) {
+          setCloudSetupNeeded(false)
           setSyncError(e instanceof Error ? e.message : 'Failed to sync tournaments')
           refreshLocal()
         }
@@ -92,28 +137,40 @@ export function useTournaments() {
       cancelled = true
       void client.removeChannel(channel)
     }
-  }, [refreshFromCloud, refreshLocal])
+  }, [applySyncResult, refreshFromCloud, refreshLocal])
 
   const create = useCallback(
-    (draft: CreateTournamentDraft) => {
-      const config = buildTournamentFromDraft(draft)
+    async (draft: CreateTournamentDraft, bannerOptions?: TournamentBannerOptions) => {
+      let config = buildTournamentFromDraft(draft)
       saveTournament(config)
       refreshLocal()
 
-      if (isSupabaseConfigured) {
-        upsertTournament(config)
-          .then(() => {
-            setSyncError(null)
-            return refreshFromCloud()
-          })
-          .catch((e) => {
-            setSyncError(e instanceof Error ? e.message : 'Failed to save tournament to cloud')
-          })
+      if (bannerOptions?.bannerFile || bannerOptions?.removeBanner) {
+        try {
+          config = await applyTournamentBanner(config, bannerOptions)
+          saveTournament(config)
+          refreshLocal()
+        } catch (e) {
+          setSyncError(e instanceof Error ? e.message : 'Failed to upload banner')
+        }
+      }
+
+      if (isSupabaseConfigured && !cloudSetupNeeded) {
+        try {
+          await upsertTournament(config)
+          setSyncError(null)
+          await refreshFromCloud()
+        } catch (e) {
+          const message =
+            e instanceof Error ? e.message : 'Failed to save tournament to cloud'
+          setSyncError(message)
+          throw new Error(message)
+        }
       }
 
       return config
     },
-    [refreshFromCloud, refreshLocal],
+    [cloudSetupNeeded, refreshFromCloud, refreshLocal],
   )
 
   const update = useCallback(
@@ -121,7 +178,7 @@ export function useTournaments() {
       saveTournament({ ...config, updatedAt: new Date().toISOString() })
       refreshLocal()
 
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && !cloudSetupNeeded) {
         upsertTournament({ ...config, updatedAt: new Date().toISOString() })
           .then(() => {
             setSyncError(null)
@@ -132,34 +189,46 @@ export function useTournaments() {
           })
       }
     },
-    [refreshFromCloud, refreshLocal],
+    [cloudSetupNeeded, refreshFromCloud, refreshLocal],
   )
 
   const updateFromDraft = useCallback(
-    (id: string, draft: CreateTournamentDraft) => {
+    async (id: string, draft: CreateTournamentDraft, bannerOptions?: TournamentBannerOptions) => {
       const existing = getTournament(id)
       if (!existing) return null
-      const config = updateTournamentFromDraft(existing, draft)
+      let config = updateTournamentFromDraft(existing, draft)
       refreshLocal()
 
-      if (isSupabaseConfigured) {
-        upsertTournament(config)
-          .then(() => {
-            setSyncError(null)
-            const results = loadRawResults(id)
-            if (Object.keys(results).length > 0) {
-              return upsertManyResults(id, results)
-            }
-          })
-          .then(() => refreshFromCloud())
-          .catch((e) => {
-            setSyncError(e instanceof Error ? e.message : 'Failed to sync tournament changes')
-          })
+      if (bannerOptions?.bannerFile || bannerOptions?.removeBanner) {
+        try {
+          config = await applyTournamentBanner(config, bannerOptions)
+          saveTournament(config)
+          refreshLocal()
+        } catch (e) {
+          setSyncError(e instanceof Error ? e.message : 'Failed to upload banner')
+        }
+      }
+
+      if (isSupabaseConfigured && !cloudSetupNeeded) {
+        try {
+          await upsertTournament(config)
+          setSyncError(null)
+          const results = loadRawResults(id)
+          if (Object.keys(results).length > 0) {
+            await upsertManyResults(id, results)
+          }
+          await refreshFromCloud()
+        } catch (e) {
+          const message =
+            e instanceof Error ? e.message : 'Failed to sync tournament changes'
+          setSyncError(message)
+          throw new Error(message)
+        }
       }
 
       return config
     },
-    [refreshFromCloud, refreshLocal],
+    [cloudSetupNeeded, refreshFromCloud, refreshLocal],
   )
 
   const remove = useCallback(
@@ -167,7 +236,7 @@ export function useTournaments() {
       const ok = deleteTournament(id)
       if (ok) refreshLocal()
 
-      if (ok && isSupabaseConfigured) {
+      if (ok && isSupabaseConfigured && !cloudSetupNeeded) {
         Promise.all([deleteTournamentRemote(id), deleteResultsForTournament(id)])
           .then(() => {
             setSyncError(null)
@@ -180,7 +249,7 @@ export function useTournaments() {
 
       return ok
     },
-    [refreshFromCloud, refreshLocal],
+    [cloudSetupNeeded, refreshFromCloud, refreshLocal],
   )
 
   const summaries = tournaments.map((t) => toSummary(t))
@@ -190,6 +259,7 @@ export function useTournaments() {
     summaries,
     loading,
     syncError,
+    cloudSetupNeeded,
     isCloudEnabled: isSupabaseConfigured,
     create,
     update,

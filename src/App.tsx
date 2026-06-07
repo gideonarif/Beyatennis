@@ -14,7 +14,7 @@ function App() {
   const [view, setView] = useState<AppView>('home')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editReturnTo, setEditReturnTo] = useState<'home' | 'tournament'>('home')
-  const { summaries, create, updateFromDraft, remove, refresh, configToDraft, loading, syncError, isCloudEnabled } = useTournaments()
+  const { summaries, create, updateFromDraft, remove, refresh, configToDraft, loading, syncError, cloudSetupNeeded, isCloudEnabled } = useTournaments()
   const {
     role,
     isAdmin,
@@ -32,8 +32,8 @@ function App() {
       <CreateTournamentWizard
         mode="create"
         onCancel={() => setView('home')}
-        onComplete={(draft) => {
-          const config = create(draft)
+        onComplete={async (draft, bannerOptions) => {
+          const config = await create(draft, bannerOptions)
           setSelectedId(config.id)
           setView('tournament')
         }}
@@ -50,8 +50,8 @@ function App() {
         onCancel={() => {
           setView(editReturnTo === 'tournament' ? 'tournament' : 'home')
         }}
-        onComplete={(draft) => {
-          const config = updateFromDraft(selectedConfig.id, draft)
+        onComplete={async (draft, bannerOptions) => {
+          const config = await updateFromDraft(selectedConfig.id, draft, bannerOptions)
           if (config) {
             setSelectedId(config.id)
             setView(editReturnTo === 'tournament' ? 'tournament' : 'home')
@@ -114,6 +114,7 @@ function App() {
         isAdmin={isAdmin}
         loading={loading}
         syncError={syncError}
+        cloudSetupNeeded={cloudSetupNeeded}
         isCloudEnabled={isCloudEnabled}
         onOpen={(id) => {
           setSelectedId(id)

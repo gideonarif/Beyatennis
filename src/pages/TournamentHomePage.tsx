@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { SiteAppearanceModal } from '../components/SiteAppearanceModal'
+import { useSiteAppearance } from '../context/SiteAppearanceContext'
 import type { TournamentSummary, TournamentStatus } from '../types/tournament'
 import { FORMAT_LABELS } from '../types/tournament'
 
@@ -9,6 +11,7 @@ interface TournamentHomePageProps {
   isAdmin: boolean
   loading?: boolean
   syncError?: string | null
+  cloudSetupNeeded?: boolean
   isCloudEnabled?: boolean
   onOpen: (id: string) => void
   onCreate?: () => void
@@ -54,6 +57,7 @@ export function TournamentHomePage({
   isAdmin,
   loading = false,
   syncError = null,
+  cloudSetupNeeded = false,
   isCloudEnabled = false,
   onOpen,
   onCreate,
@@ -62,6 +66,8 @@ export function TournamentHomePage({
 }: TournamentHomePageProps) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<FilterStatus>('all')
+  const [showAppearance, setShowAppearance] = useState(false)
+  const { cloudWarning: appearanceCloudWarning } = useSiteAppearance()
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -84,7 +90,9 @@ export function TournamentHomePage({
   ]
 
   return (
-    <div className="mx-auto min-h-dvh max-w-lg bg-[#f0f2f5] pb-8">
+    <div className="mx-auto min-h-dvh max-w-lg pb-8">
+      {showAppearance && <SiteAppearanceModal onClose={() => setShowAppearance(false)} />}
+
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 px-4 py-4 backdrop-blur">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
@@ -95,15 +103,27 @@ export function TournamentHomePage({
               </p>
             )}
           </div>
-          {isAdmin && onCreate && (
-            <button
-              type="button"
-              onClick={onCreate}
-              className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-            >
-              Create Tournament
-            </button>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowAppearance(true)}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                title="Customize site background"
+              >
+                Appearance
+              </button>
+            )}
+            {isAdmin && onCreate && (
+              <button
+                type="button"
+                onClick={onCreate}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+              >
+                Create Tournament
+              </button>
+            )}
+          </div>
         </div>
 
         <input
@@ -133,8 +153,20 @@ export function TournamentHomePage({
       </header>
 
       {syncError && (
-        <div className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+        <div
+          className={`mx-4 mt-3 rounded-lg px-3 py-2 text-center text-xs ${
+            cloudSetupNeeded
+              ? 'bg-amber-50 text-amber-900'
+              : 'bg-red-50 text-red-700'
+          }`}
+        >
           {syncError}
+        </div>
+      )}
+
+      {isAdmin && appearanceCloudWarning && (
+        <div className="mx-4 mt-3 rounded-lg bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
+          {appearanceCloudWarning}
         </div>
       )}
 

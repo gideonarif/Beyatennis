@@ -59,7 +59,7 @@ function TournamentViewInner({
   const activeTab = visibleTabs.includes(tab) ? tab : visibleTabs[0]
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-lg overflow-x-hidden bg-[#f0f2f5] pb-20 md:max-w-3xl lg:max-w-5xl">
+    <div className="mx-auto min-h-dvh w-full max-w-lg overflow-x-hidden pb-20 md:max-w-3xl lg:max-w-5xl">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/90 px-4 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">

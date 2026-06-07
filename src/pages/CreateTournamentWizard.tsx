@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { BannerImageUpload } from '../components/BannerImageUpload'
+import type { TournamentBannerOptions } from '../hooks/useTournaments'
 import type {
   CreateTournamentDraft,
   MatchFormat,
@@ -16,7 +18,10 @@ interface CreateTournamentWizardProps {
   initialDraft?: CreateTournamentDraft
   datesLocked?: boolean
   onCancel: () => void
-  onComplete: (draft: CreateTournamentDraft) => void
+  onComplete: (
+    draft: CreateTournamentDraft,
+    bannerOptions?: TournamentBannerOptions,
+  ) => void | Promise<void>
 }
 
 const STEPS = [
@@ -56,6 +61,10 @@ export function CreateTournamentWizard({
     }
   })
   const [bulkPaste, setBulkPaste] = useState('')
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [removeBanner, setRemoveBanner] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const needsGroups = ['group_knockout', 'swiss', 'custom'].includes(draft.format)
   const needsQualification = draft.format === 'group_knockout' || draft.format === 'custom'
@@ -138,12 +147,31 @@ export function CreateTournamentWizard({
     (step === 6 && !needsGroups && !needsQualification) ||
     (step === 5 && !needsGroups && !needsQualification)
 
+  const finishWizard = async () => {
+    const finalDraft = {
+      ...draft,
+      playerNames: syncPlayerRoster(draft.participantCount, draft.playerNames),
+      imageUrl: removeBanner ? null : draft.imageUrl,
+    }
+    const bannerOptions: TournamentBannerOptions | undefined =
+      bannerFile || removeBanner
+        ? { bannerFile: bannerFile ?? undefined, removeBanner }
+        : undefined
+
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      await onComplete(finalDraft, bannerOptions)
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Failed to save tournament')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const goNext = () => {
     if (isLastStep) {
-      onComplete({
-        ...draft,
-        playerNames: syncPlayerRoster(draft.participantCount, draft.playerNames),
-      })
+      void finishWizard()
       return
     }
     let s = step + 1
@@ -153,10 +181,7 @@ export function CreateTournamentWizard({
       break
     }
     if (s >= STEPS.length) {
-      onComplete({
-        ...draft,
-        playerNames: syncPlayerRoster(draft.participantCount, draft.playerNames),
-      })
+      void finishWizard()
     } else setStep(s)
   }
 
@@ -192,12 +217,20 @@ export function CreateTournamentWizard({
                 placeholder="Tournament details…"
               />
             </Field>
-            <Field label="Banner image URL (optional)">
-              <input
-                value={draft.imageUrl ?? ''}
-                onChange={(e) => patch({ imageUrl: e.target.value || null })}
-                className={inputClass}
-                placeholder="https://…"
+            <Field label="Tournament banner (optional)">
+              <BannerImageUpload
+                imageUrl={removeBanner ? null : draft.imageUrl}
+                onImageUrlChange={(url) => patch({ imageUrl: url })}
+                onFileSelected={(file) => {
+                  setBannerFile(file)
+                  setRemoveBanner(false)
+                }}
+                onRemove={() => {
+                  setBannerFile(null)
+                  setRemoveBanner(true)
+                  patch({ imageUrl: null })
+                }}
+                disabled={submitting}
               />
             </Field>
             <Field label="Sport Type">
@@ -602,7 +635,7 @@ export function CreateTournamentWizard({
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-lg bg-[#f0f2f5]">
+    <div className="mx-auto min-h-dvh max-w-lg pb-8">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white px-4 py-4">
         <button type="button" onClick={onCancel} className="mb-2 text-sm text-gray-500">
           ← Cancel
@@ -624,12 +657,28 @@ export function CreateTournamentWizard({
       <main className="px-4 py-4 pb-28">{renderStep()}</main>
 
       <footer className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white px-4 py-4">
+        {submitError && (
+          <p className="mx-auto mb-3 max-w-lg rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+            {submitError}
+          </p>
+        )}
         <div className="mx-auto flex max-w-lg gap-3">
           <button type="button" onClick={goBack} className={`flex-1 ${btnSecondary}`}>
             {step === 0 ? 'Cancel' : 'Back'}
           </button>
-          <button type="button" onClick={goNext} className={`flex-1 ${btnPrimary}`}>
-            {isLastStep ? (isEdit ? 'Save Changes' : 'Create Tournament') : 'Continue'}
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={submitting}
+            className={`flex-1 ${btnPrimary} disabled:opacity-50`}
+          >
+            {submitting
+              ? 'Saving…'
+              : isLastStep
+                ? isEdit
+                  ? 'Save Changes'
+                  : 'Create Tournament'
+                : 'Continue'}
           </button>
         </div>
       </footer>

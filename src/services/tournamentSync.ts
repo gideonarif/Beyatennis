@@ -1,6 +1,7 @@
 import { createSeedTournament, SEED_TOURNAMENT_ID } from '../data/seedTournament'
 import { isSupabaseConfigured } from '../lib/supabase'
 import type { TournamentConfig } from '../types/tournament'
+import { cloudSetupMessage } from './cloudErrors'
 import { initTournamentStorage, replaceAllTournaments } from './tournamentStorage'
 import {
   fetchAllTournaments,
@@ -8,6 +9,11 @@ import {
 } from './tournamentsService'
 
 const MIGRATED_KEY = 'ttt-tournaments-migrated-to-supabase'
+
+export interface TournamentSyncResult {
+  tournaments: TournamentConfig[]
+  cloudWarning: string | null
+}
 
 function mergeByUpdatedAt(
   local: TournamentConfig[],
@@ -50,24 +56,34 @@ function tournamentsNeedUpload(
 }
 
 /** Merge local and cloud tournaments, upload changes, and persist locally. */
-export async function syncTournamentsWithCloud(): Promise<TournamentConfig[]> {
+export async function syncTournamentsWithCloud(): Promise<TournamentSyncResult> {
   const local = initTournamentStorage()
 
-  if (!isSupabaseConfigured) return local
-
-  const remote = await fetchAllTournaments()
-  const alreadyMigrated = localStorage.getItem(MIGRATED_KEY) === '1'
-
-  if (!alreadyMigrated && local.length > 0) {
-    await upsertManyTournaments(local)
-    localStorage.setItem(MIGRATED_KEY, '1')
-  } else {
-    const toUpload = tournamentsNeedUpload(local, remote)
-    if (toUpload.length > 0) {
-      await upsertManyTournaments(toUpload)
-    }
+  if (!isSupabaseConfigured) {
+    return { tournaments: local, cloudWarning: null }
   }
 
-  const merged = mergeByUpdatedAt(local, remote)
-  return replaceAllTournaments(merged)
+  try {
+    const remote = await fetchAllTournaments()
+    const alreadyMigrated = localStorage.getItem(MIGRATED_KEY) === '1'
+
+    if (!alreadyMigrated && local.length > 0) {
+      await upsertManyTournaments(local)
+      localStorage.setItem(MIGRATED_KEY, '1')
+    } else {
+      const toUpload = tournamentsNeedUpload(local, remote)
+      if (toUpload.length > 0) {
+        await upsertManyTournaments(toUpload)
+      }
+    }
+
+    const merged = mergeByUpdatedAt(local, remote)
+    return { tournaments: replaceAllTournaments(merged), cloudWarning: null }
+  } catch (error) {
+    const setupMessage = cloudSetupMessage(error)
+    if (setupMessage) {
+      return { tournaments: local, cloudWarning: setupMessage }
+    }
+    throw error
+  }
 }

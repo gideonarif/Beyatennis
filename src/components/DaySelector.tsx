@@ -18,7 +18,7 @@ function dayButtonClass(active: boolean): string {
 
 export function DaySelector({ active, days, tournamentId, onChange }: DaySelectorProps) {
   return (
-    <div className="min-w-0 border-b border-gray-200/50 bg-[#f0f2f5]/95">
+    <div className="min-w-0 border-b border-gray-200/50 bg-white/95">
       {/* Mobile: horizontal scroll so full date labels stay visible */}
       <div className="overflow-x-auto overscroll-x-contain px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
         <div className="flex w-max gap-2">
